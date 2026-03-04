@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Data Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0f1a;
+      --panel: #111827;
+      --border: #1f2d45;
+      --accent1: #00e5ff;
+      --accent2: #ff6b6b;
+      --accent3: #a3e635;
+      --accent4: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      overflow: hidden;
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 12px;
+      height: 100vh;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3), var(--accent4));
+    }
+
+    .header-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--accent1);
+      text-transform: uppercase;
+    }
+
+    .header-meta {
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      background: var(--accent3);
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .card:nth-child(2) { animation-delay: 0.1s; }
+    .card:nth-child(3) { animation-delay: 0.2s; }
+    .card:nth-child(4) { animation-delay: 0.3s; }
+    .card:nth-child(5) { animation-delay: 0.4s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .card-accent {
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px;
+      height: 100%;
+    }
+
+    .card:nth-child(2) .card-accent { background: var(--accent1); }
+    .card:nth-child(3) .card-accent { background: var(--accent2); }
+    .card:nth-child(4) .card-accent { background: var(--accent3); }
+    .card:nth-child(5) .card-accent { background: var(--accent4); }
+
+    .chart-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-title">Regional Analytics Dashboard</div>
+    <div class="header-meta"><span class="live-dot"></span>SAMPLE DATA · 2024</div>
+  </header>
+
+  <!-- Bar Chart -->
+  <div class="card">
+    <div class="card-accent"></div>
+    <div class="card-label">Monthly Revenue (USD)</div>
+    <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+  </div>
+
+  <!-- Donut Chart -->
+  <div class="card">
+    <div class="card-accent"></div>
+    <div class="card-label">Category Breakdown</div>
+    <div class="chart-wrap"><canvas id="donutChart"></canvas></div>
+  </div>
+
+  <!-- Line Chart -->
+  <div class="card">
+    <div class="card-accent"></div>
+    <div class="card-label">User Growth Over Time</div>
+    <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+  </div>
+
+  <!-- Radar Chart -->
+  <div class="card">
+    <div class="card-accent"></div>
+    <div class="card-label">Performance Metrics</div>
+    <div class="chart-wrap"><canvas id="radarChart"></canvas></div>
+  </div>
+
+  <script>
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.borderColor = '#1f2d45';
+    Chart.defaults.font.family = "'DM Mono', monospace";
+    Chart.defaults.font.size = 10;
+
+    const accent1 = '#00e5ff';
+    const accent2 = '#ff6b6b';
+    const accent3 = '#a3e635';
+    const accent4 = '#f59e0b';
+
+    // BAR CHART
+    new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+        datasets: [{
+          label: 'Revenue',
+          data: [42000,55000,48000,61000,73000,68000,82000,79000,91000,85000,97000,110000],
+          backgroundColor: `${accent1}33`,
+          borderColor: accent1,
+          borderWidth: 1.5,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#1f2d45' } },
+          y: {
+            grid: { color: '#1f2d45' },
+            ticks: { callback: v => '$' + (v/1000) + 'k' }
+          }
+        }
+      }
+    });
+
+    // DONUT CHART
+    new Chart(document.getElementById('donutChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Infrastructure', 'Operations', 'Marketing', 'R&D', 'Support'],
+        datasets: [{
+          data: [32, 21, 18, 16, 13],
+          backgroundColor: [`${accent1}cc`, `${accent2}cc`, `${accent3}cc`, `${accent4}cc`, '#8b5cf6cc'],
+          borderColor: '#0b0f1a',
+          borderWidth: 3,
+          hoverOffset: 8,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { boxWidth: 10, padding: 10, color: '#94a3b8' }
+          }
+        }
+      }
+    });
+
+    // LINE CHART
+    new Chart(document.getElementById('lineChart'), {
+      type: 'line',
+      data: {
+        labels: ['Q1 22','Q2 22','Q3 22','Q4 22','Q1 23','Q2 23','Q3 23','Q4 23','Q1 24','Q2 24','Q3 24','Q4 24'],
+        datasets: [
+          {
+            label: 'Active Users',
+            data: [1200,1800,2100,2400,2900,3500,4100,4800,5600,6200,7100,8300],
+            borderColor: accent1,
+            backgroundColor: `${accent1}15`,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: accent1,
+          },
+          {
+            label: 'New Signups',
+            data: [400,700,600,900,1100,1400,1200,1600,1900,2100,2400,2800],
+            borderColor: accent3,
+            backgroundColor: `${accent3}10`,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: accent3,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { boxWidth: 10, padding: 12, color: '#94a3b8' } }
+        },
+        scales: {
+          x: { grid: { color: '#1f2d45' } },
+          y: { grid: { color: '#1f2d45' } }
+        }
+      }
+    });
+
+    // RADAR CHART
+    new Chart(document.getElementById('radarChart'), {
+      type: 'radar',
+      data: {
+        labels: ['Speed', 'Reliability', 'Scalability', 'Security', 'Usability', 'Coverage'],
+        datasets: [
+          {
+            label: 'Current',
+            data: [82, 91, 74, 88, 79, 85],
+            borderColor: accent1,
+            backgroundColor: `${accent1}20`,
+            pointBackgroundColor: accent1,
+            pointRadius: 4,
+          },
+          {
+            label: 'Target',
+            data: [95, 95, 90, 95, 92, 95],
+            borderColor: accent4,
+            backgroundColor: `${accent4}15`,
+            pointBackgroundColor: accent4,
+            pointRadius: 4,
+            borderDash: [4, 4],
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          r: {
+            min: 0, max: 100,
+            grid: { color: '#1f2d45' },
+            angleLines: { color: '#1f2d45' },
+            pointLabels: { color: '#94a3b8', font: { size: 10 } },
+            ticks: { display: false }
+          }
+        },
+        plugins: {
+          legend: { labels: { boxWidth: 10, padding: 12, color: '#94a3b8' } }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
